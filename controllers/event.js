@@ -1,6 +1,5 @@
 const Event = require("../models/Events");
 
-// Create Event
 const createEvent = async (req, res) => {
   try {
     const {
@@ -66,20 +65,23 @@ const createEvent = async (req, res) => {
   }
 };
 
-// Get All Available Events
-getAvailableEvents = async (req, res) => {
+const getAvailableEvents = async (req, res) => {
   try {
     const availableEvents = await Event.find({ status: "available" });
-    res.status(200).json({ events: availableEvents });
+
+    if (!availableEvents || availableEvents.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, msg: "No available events found." });
+    }
+
+    res.status(200).json({ success: true, events: availableEvents });
   } catch (error) {
     console.error("Error fetching events:", error.message);
-    res
-      .status(500)
-      .json({ msg: "Internal Server Error", error: error.message });
+    res.status(500).json({ success: false, msg: "Internal Server Error" });
   }
 };
 
-// Update Event
 const updateEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -124,7 +126,6 @@ const updateEvent = async (req, res) => {
   }
 };
 
-// Get All Events
 const getAllEvents = async (req, res) => {
   try {
     const events = await Event.find();
@@ -137,7 +138,6 @@ const getAllEvents = async (req, res) => {
   }
 };
 
-// Delete Event
 const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;

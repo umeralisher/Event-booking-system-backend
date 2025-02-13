@@ -5,7 +5,6 @@ const authMiddleware = (allowedRoles = []) => {
     try {
       const authHeader = req.headers.authorization;
 
-      // Check if the Authorization header is present
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res
           .status(401)
@@ -13,25 +12,20 @@ const authMiddleware = (allowedRoles = []) => {
       }
 
       const token = authHeader.split(" ")[1];
-
-      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Attach user info to the request
-      req.user = decoded;
+      req.user = decoded; // Attach user info
 
-      // Validate user role (if required)
       if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
         return res
           .status(403)
           .json({ message: "Forbidden: Insufficient permissions" });
       }
 
-      next(); // Proceed to the next middleware
+      next();
     } catch (error) {
       console.error("Auth middleware error:", error.message);
 
-      // Handle expired or invalid tokens
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({ message: "Unauthorized: Token expired" });
       } else if (error.name === "JsonWebTokenError") {

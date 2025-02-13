@@ -1,16 +1,13 @@
-const Contact = require("../models/Contact"); // Import the Contact model
+const Contact = require("../models/Contact");
 
-// Create a new contact message
 const createContact = async (req, res) => {
   try {
     const { name, email, phone, message } = req.body;
 
-    // Validate the fields
     if (!name || !email || !phone || !message) {
       return res.status(400).json({ msg: "All fields are required" });
     }
 
-    // Create new contact message
     const newContact = new Contact({
       name,
       email,
@@ -18,7 +15,6 @@ const createContact = async (req, res) => {
       message,
     });
 
-    // Save the contact message to the database
     await newContact.save();
 
     res.status(201).json({
@@ -33,7 +29,6 @@ const createContact = async (req, res) => {
   }
 };
 
-// Get all contact messages
 const getAllContacts = async (req, res) => {
   try {
     const contacts = await Contact.find();
@@ -51,7 +46,6 @@ const getAllContacts = async (req, res) => {
   }
 };
 
-// Get a single contact message by ID
 const getContactById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -71,7 +65,6 @@ const getContactById = async (req, res) => {
   }
 };
 
-// Delete a contact message by ID
 const deleteContact = async (req, res) => {
   try {
     const { id } = req.params;

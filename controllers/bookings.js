@@ -13,19 +13,16 @@ createBooking = async (req, res) => {
         .json({ msg: "Please fill in all required fields." });
     }
 
-    // Find the event to ensure it exists
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(404).json({ msg: "Event not found." });
     }
 
-    // Optionally, find the user by email (if using email-to-ID resolution)
     const user = await User.findOne({ email: userEmail });
     if (!user) {
       return res.status(404).json({ msg: "User not found." });
     }
 
-    // Create a new booking
     const newBooking = new Booking({
       event: eventId,
       user: user._id, // Use user ID
@@ -35,7 +32,6 @@ createBooking = async (req, res) => {
 
     await newBooking.save();
 
-    // Update the event's status to "upcoming"
     event.status = "upcoming";
     await event.save();
 
@@ -95,7 +91,7 @@ const getBookingById = async (req, res) => {
       return res.status(404).json({ msg: "Booking not found" });
     }
 
-    res.status(200).json({ data: booking }); // Ensure data is sent in 'data' key
+    res.status(200).json({ data: booking });
   } catch (error) {
     if (error.name === "CastError") {
       return res.status(400).json({ msg: "Invalid booking ID" });
@@ -111,10 +107,9 @@ const getAllBookings = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
 
-    // Find all bookings and populate both `user` and `event`
     const bookings = await Booking.find()
-      .populate("user", "email name") // Only fetch `email` and `name` fields from User
-      .populate("event", "title date") // Only fetch `title` and `date` fields from Event
+      .populate("user", "email name")
+      .populate("event", "title date")
       .skip((page - 1) * limit)
       .limit(Number(limit));
 

@@ -2,90 +2,82 @@ const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
-// Register a user
+// Register a new user
+// Register a new user
 const registerUser = async (req, res) => {
   const { name, email, password, role } = req.body;
 
   try {
-    // Check if all required fields are provided
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if the user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "User with this email already exists" });
+      return res.status(400).json({ message: "Email is already in use" });
     }
 
-    // Check if an admin already exists
     if (role === "admin") {
       const adminExists = await User.findOne({ role: "admin" });
       if (adminExists) {
         return res.status(403).json({
-          message:
-            "Registration as admin is restricted. An admin already exists.",
+          message: "Admin registration restricted. An admin already exists.",
         });
       }
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Assign role: default to "user" if no role is provided
     const newRole = role === "admin" ? "admin" : "user";
 
-    // Create and save the user
-    const user = await User.create({
+    const newUser = await User.create({
       name,
       email,
-      password: hashedPassword, // Store the hashed password
+      password: hashedPassword,
       role: newRole,
     });
 
-    res.status(201).json({ message: "User registered successfully", user });
-  } catch (err) {
-    console.error("Error registering user:", err);
-
-    // Check for validation errors
-    if (err.name === "ValidationError") {
-      return res
-        .status(400)
-        .json({ message: "Validation error", details: err.message });
-    }
-
-    // Handle unexpected errors
+    res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+  } catch (error) {
+    console.error("Error registering user:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Login user
+// Login a user
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   try {
-    // Validate input
     if (!email || !password) {
       return res
         .status(400)
         .json({ message: "Email and password are required" });
     }
 
-    // Check if the user exists
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Validate password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Generate JWT token
+    if (role && user.role !== role) {
+      return res.status(403).json({
+        message: `Invalid role. You are registered as "${user.role}" and cannot log in as "${role}".`,
+      });
+    }
+
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -102,56 +94,62 @@ const loginUser = async (req, res) => {
         role: user.role,
       },
     });
-  } catch (err) {
-    console.error("Error logging in:", err);
+  } catch (error) {
+    console.error("Error logging in:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Get all users
+// Get all users (admin-only)
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}, "-password"); // Exclude password field
+    const users = await User.find({}, "-password"); // Exclude password from results
     res.status(200).json(users);
-  } catch (err) {
-    console.error("Error fetching users:", err);
+  } catch (error) {
+    console.error("Error fetching users:", error);
     res.status(500).json({ message: "Failed to fetch users" });
   }
 };
 
-// Update user
+// Update a user
 const updateUser = async (req, res) => {
   const { id } = req.params;
+  const { password, ...otherUpdates } = req.body; // Extract password for special handling
 
   try {
-    // Validate input
     if (!id) {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    // Find and update the user
-    const updatedUser = await User.findByIdAndUpdate(id, req.body, {
-      new: true, // Return the updated document
-      runValidators: true, // Run schema validators on the update
-    });
-
-    if (!updatedUser) {
+    // Check if user exists
+    const user = await User.findById(id);
+    if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // If password is being updated, hash it
+    if (password) {
+      otherUpdates.password = await bcrypt.hash(password, 10);
+    }
+
+    // Update user details
+    const updatedUser = await User.findByIdAndUpdate(id, otherUpdates, {
+      new: true, // Return updated document
+      runValidators: true, // Apply schema validators
+    });
+
     res.status(200).json({ message: "User updated successfully", updatedUser });
-  } catch (err) {
-    console.error("Error updating user:", err);
+  } catch (error) {
+    console.error("Error updating user:", error);
     res.status(500).json({ message: "Failed to update user" });
   }
 };
 
-// Delete user
+// Delete a user
 const deleteUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Validate input
     if (!id) {
       return res.status(400).json({ message: "User ID is required" });
     }
@@ -163,8 +161,8 @@ const deleteUser = async (req, res) => {
     }
 
     res.status(200).json({ message: "User deleted successfully" });
-  } catch (err) {
-    console.error("Error deleting user:", err);
+  } catch (error) {
+    console.error("Error deleting user:", error);
     res.status(500).json({ message: "Failed to delete user" });
   }
 };
